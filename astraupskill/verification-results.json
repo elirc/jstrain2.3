@@ -1,0 +1,141 @@
+{
+  "passed": true,
+  "date": "2026-09-12T10:44:04.585605+00:00",
+  "project": "_Organized Desktop/04 JavaScript Training/jstrain2.3",
+  "distinctChecks": 122,
+  "nodeTests": 97,
+  "browserWorkflowGroups": 25,
+  "countsNote": "Node tests plus the enumerated browser/HTTP/setup workflow groups. Repeated and failed runs are not counted again. Build and lint are additional checks.",
+  "node": {
+    "command": [
+      "node",
+      "--test",
+      "test\\api.test.mjs",
+      "test\\client.test.mjs",
+      "test\\database.test.mjs",
+      "test\\markdown.test.mjs",
+      "test\\merge.test.mjs",
+      "test\\mutations.test.mjs",
+      "test\\repository.test.mjs",
+      "test\\schema.test.mjs",
+      "test\\session.test.mjs",
+      "test\\store.test.mjs"
+    ],
+    "exitCode": 0,
+    "seconds": 8.05
+  },
+  "lint": {
+    "command": [
+      "node",
+      "node_modules/eslint/bin/eslint.js",
+      "src",
+      "scripts",
+      "test"
+    ],
+    "exitCode": 0,
+    "seconds": 114.35
+  },
+  "build": {
+    "command": [
+      "node",
+      "node_modules/next/dist/bin/next",
+      "build"
+    ],
+    "exitCode": 0,
+    "seconds": 49.05
+  },
+  "browser": {
+    "passed": true,
+    "checks": [
+      "fresh CLI setup and repeat-setup refusal preserve database bytes",
+      "actual Next HTTP authorization origin and workspace boundaries",
+      "browser owner sign-in and initial accepted workspace",
+      "page edit accepted through UI and real SQLite",
+      "reload requires token again and reads persisted content",
+      "typed number zero and checkbox false survive accepted save",
+      "new record and numeric sort render through stored view settings",
+      "board and calendar retain unassigned and undated records",
+      "authenticated accepted Markdown download includes table content",
+      "record and referenced property deletion persist with view cleanup",
+      "snapshot capture and restore preserve actual page content",
+      "snapshot deletion removes history without deleting page",
+      "real two-tab stale write refused with local draft retained",
+      "one tab acceptance does not clear another tab retained IndexedDB draft",
+      "explicit three-way conflict choice saved against latest revision",
+      "sign-out preserves a saved draft that has not been reviewed",
+      "simulated network failure retained in real IndexedDB across sign-out and reviewed recovery",
+      "authenticated Markdown import creates code block and selects new page",
+      "comment creation and editing persist through the UI",
+      "comment replies and resolution persist",
+      "block deletion removes dependent thread and comments",
+      "page trash and restore persist and restore active selection",
+      "accepted JSON export excludes owner credential",
+      "390-pixel layout stays within viewport width",
+      "browser workflow has no uncaught page errors"
+    ],
+    "count": 25,
+    "browser": "Chromium via Python Playwright",
+    "server": "Next production server with real temporary SQLite",
+    "limits": [
+      "One network failure was deliberately simulated by aborting a browser route.",
+      "No original database or private user content was opened."
+    ],
+    "screenshots": [
+      "workspace-desktop.png",
+      "workspace-mobile.png"
+    ]
+  },
+  "screenshots": [
+    {
+      "file": "images/workspace-desktop.png",
+      "sha256": "df892826c1450acee3470d2a21dcc4437b3897ca7f3cbcfa89843011a87b9613",
+      "visuallyReviewed": true
+    },
+    {
+      "file": "images/workspace-mobile.png",
+      "sha256": "a7e98d9fc7c594e41459421125d36ee10f006f6b8e5633b88c5cfb051e7c0576",
+      "visuallyReviewed": true
+    }
+  ],
+  "limits": [
+    "Local single-owner workspace; visibility labels are metadata, and presence is limited to same-origin tabs.",
+    "No durable operation receipts, account recovery, encrypted browser draft storage or general JSON restore UI.",
+    "Bounded whole-document JSON model, rolling server activity and bounded snapshots; standard duplicate-key JSON parsing remains.",
+    "Legacy adoption is explicit, validates accepted content and preserves legacy tables; incompatible existing data requires deliberate investigation, not automatic repair.",
+    "Markdown import/export covers a block subset and table text, not a lossless workspace round trip.",
+    "Chromium desktop/mobile checks on Windows; not all browsers, operating systems or assistive technologies. One network failure is deliberately simulated.",
+    "Fresh database setup and installed lock consistency verified; no separate full clean-copy dependency installation was performed after the version update.",
+    "Original user database was not opened, migrated or replaced during this delivery."
+  ],
+  "sourceHashes": {
+    "src/app/favicon.ico": "2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932",
+    "src/app/globals.css": "dcadd694d13f647a276ca2e1443816761b5d63a0548de7cf6131a3eacd7175c3",
+    "src/app/layout.js": "de7d3f8445b0f3fe56385ddc7c11638df210b08a17e52f95403875a44db87b28",
+    "src/app/page.js": "e505f52484a11b56a5abd5bb53729119695a2254a69ca2a8755b86ba68dd023b",
+    "src/components/DatabaseBlock.js": "2a6d1344236754261a8574447927de732705c19ff89d480faceff35cac571cbb",
+    "src/components/useWorkspaceConnection.js": "8ff4b5dff4223c19c74c3dcac895edef6f63fc14c2747408ecde3febda326912",
+    "src/components/WorkspaceApp.js": "69f10aa460ddd6344e5f3b018f2b43e797cc6a77f48951a547ce2c76a61d788d",
+    "src/lib/databaseModel.mjs": "ef687e60151dfc28188809edb0179cec0aee6884f388d4e4bf3e8030ff8a29fa",
+    "src/lib/defaultWorkspace.js": "bed7a605391908e8f8b368ad9096a03925a71e1aedfa89d78b862709849e0bfb",
+    "src/lib/httpRoute.js": "2c0ba6b4cf0c4a48a0e6fcd845cef33fd064e73c290be2f82cae1d23ede474c8",
+    "src/lib/markdown.js": "139b6f53d7cd98a5ea8bdb5355283c321327f297b599a75aca0d5d7a1fa45dbb",
+    "src/lib/mergeWorkspace.mjs": "4c34cdcc42791fbd5252e83a173ae1d86239104e6d741821cd060e58c0258ec4",
+    "src/lib/offlineStore.js": "a8fc4d80fc330820bde10f6341924feee2d937af032f5c70b0a5d572bab7df9e",
+    "src/lib/sqlite.js": "b8cd0ab1405dd8288aaecaa36d268eb56c0a942f911a3dc4015cbc0f4d692c2b",
+    "src/lib/workspaceApi.mjs": "9266f3f3b6ef1bf75473ade10e322f0c5ad474230fd2616c8134b1c1e497509a",
+    "src/lib/workspaceClient.mjs": "69ae5a79632f0f3fd9d89c067205ab7703c70fa562ff46f44310910313699f29",
+    "src/lib/workspaceMutations.mjs": "a76e62453183b85953b37adbf486bf57db5b8ae9e75285c8aae3d10d51b9e1b2",
+    "src/lib/workspaceRepository.mjs": "3f3e9b01bae5ab7e1f7ef5b0fc1f75c179d6548152c69a43689493256c80c67b",
+    "src/lib/workspaceSchema.mjs": "da3565285eb7f95d025be5e126861222440115ab7ae96d8a1797f5290584bef8",
+    "src/lib/workspaceSession.mjs": "588c5b9fd4e40320d6cf3a20a6a50f10019fd431fb86fa240b3053655de76343",
+    "src/lib/workspaceStore.js": "124374e28810d1d7fa85d13058fcbf38d98f2fb60d0dde67ff126a1b072b5a45",
+    "src/lib/workspaceUtils.js": "a2ac468dce28921980c23929f5d2fd68257ba7f5d8ded8bd486c6b46470a4ded",
+    "src/app/api/search/route.js": "45877075216bbf5ba03bee51f5b5105b7fce3f8de7dafc97d734b2ab7bb24a61",
+    "src/app/api/workspace/route.js": "24121439d149926c20948fcf0df3d90d5398ba899b3875455e12f5b6fd553390",
+    "src/app/api/workspace/version/route.js": "57f4c048ff6c46b8c908f534f93b0738904f3fe9d11c619e30887dfc27a2777e",
+    "src/app/api/import/markdown/route.js": "e9b8d506bbae0f871a5727220bd468800081755cb016eb015447055f31736154",
+    "src/app/api/export/html/route.js": "45877075216bbf5ba03bee51f5b5105b7fce3f8de7dafc97d734b2ab7bb24a61",
+    "src/app/api/export/json/route.js": "45877075216bbf5ba03bee51f5b5105b7fce3f8de7dafc97d734b2ab7bb24a61",
+    "src/app/api/export/markdown/route.js": "45877075216bbf5ba03bee51f5b5105b7fce3f8de7dafc97d734b2ab7bb24a61"
+  }
+}

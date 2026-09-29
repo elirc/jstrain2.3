@@ -1,0 +1,62 @@
+﻿# Guide: src/app/layout.js
+
+## Purpose
+`layout.js` defines the root HTML shell for every page in the app. It loads global CSS, configures fonts, and sets page metadata. Think of it as the outer frame that all routes render inside.
+
+## Line-by-line walkthrough
+### Imports
+- `IBM_Plex_Mono`, `Space_Grotesk` from `next/font/google`: Next.js font optimization helpers.
+- `"./globals.css"`: loads global styling rules.
+
+Why imports matter:
+- Font imports generate CSS variables and optimized font loading.
+- Global CSS import ensures class names used by components have styles.
+
+### Font config constants
+- `spaceGrotesk = Space_Grotesk({...})`
+- `ibmPlexMono = IBM_Plex_Mono({...})`
+
+What they do:
+- Define CSS variable names (`--font-space`, `--font-mono`) and subsets/weights.
+- These objects expose `.variable` class names later used on `<body>`.
+
+### Metadata object
+- `metadata.title` and `metadata.description` configure document metadata.
+
+Control flow:
+- Next.js reads this exported object automatically during rendering.
+
+### `RootLayout({ children })`
+- Receives `children` from nested routes/pages.
+- Returns `<html>` and `<body>` wrapper.
+- Applies font variable classes to `body` plus `antialiased` utility.
+
+Scope/closures:
+- `spaceGrotesk` and `ibmPlexMono` are module-scope constants reused each render.
+
+Side effects:
+- None explicit; Next.js handles metadata/font injection at render time.
+
+TypeScript notes:
+- No TS interfaces used. In TS, `children` would typically be typed as `React.ReactNode`.
+
+## Concepts taught by this file
+- Application shell layout
+- Global metadata
+- Font optimization
+- Shared root wrapper pattern
+
+## Common mistakes
+- Forgetting to import global CSS in layout.
+- Putting page-specific metadata in root layout by accident.
+- Recreating font objects inside component function (unnecessary work).
+
+## Mini exercises
+1. Add `metadata.openGraph` values for social sharing.
+2. Add a second body class and verify styles still apply.
+3. Explain what breaks if `children` is not rendered.
+
+## Further reading
+- `Next.js App Router layout`
+- `next/font optimization`
+- `React children prop`

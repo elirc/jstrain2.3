@@ -1,0 +1,62 @@
+> Historical guide for the original implementation. Start with the [current CRUD learning course](../../../../../../../astraupskill/README.md) for the delivered code, setup and verified behavior. The [unaltered original guide](../../../../../../../docs/original/_learning/guides/src/app/api/import/markdown/route.js.guide.md.txt) is preserved for comparison. Claims below about autosave, sharing or collaboration describe the earlier design and should not be used as current guarantees.
+
+﻿# Guide: src/app/api/import/markdown/route.js
+
+## Purpose
+This route converts user-provided markdown into page blocks and inserts a new page into the workspace. It enables ingestion from external notes/docs.
+
+## Line-by-line walkthrough
+### Imports
+- `nanoid`: new page ID.
+- `markdownToBlocks`: parser converting markdown lines to block objects.
+- `getWorkspaceState`, `upsertWorkspaceState`: load and save workspace.
+
+### `runtime = "nodejs"`
+- Required because route writes SQLite-backed state.
+
+### `POST(request)`
+1. Parse JSON payload.
+2. Extract values with defaults:
+   - `workspaceId`
+   - `title`
+   - `markdown`
+   - `parentId`
+3. Validate markdown is non-empty (400 otherwise).
+4. Load current workspace state.
+5. Create `pageId` and `now` timestamp.
+6. Push new page metadata into `state.pages`.
+7. Parse markdown into blocks and assign to `state.blocksByPage[pageId]`.
+8. Update recent-page list with new page first.
+9. Update `state.meta.updatedAt`.
+10. Persist via `upsertWorkspaceState`.
+11. Return `{ ok: true, pageId }`.
+12. Catch block returns 500 on failures.
+
+Control flow:
+- Validation before mutation, then mutation, then persistence.
+
+State effects:
+- Adds a new page and associated block array in one transaction-like operation (not true SQL transaction).
+
+TypeScript notes:
+- No typed payload; malformed `parentId` etc. are not deeply validated.
+
+## Concepts taught by this file
+- Import pipeline
+- Server-side transformation before persistence
+- Defaulting and guard checks
+
+## Common mistakes
+- Not trimming title/markdown before validation.
+- Forgetting to add new page to recents.
+- Not updating workspace `updatedAt`.
+
+## Mini exercises
+1. Reject imports over a configurable character limit.
+2. Add `icon` as optional payload input.
+3. Return count of generated blocks in response.
+
+## Further reading
+- `server-side input sanitation`
+- `content import workflows`
+- `markdown AST tools`

@@ -1,0 +1,278 @@
+﻿# Guide: src/components/WorkspaceApp.js
+
+## Purpose
+`WorkspaceApp.js` is the main product surface. It composes the sidebar, editor, right panel, command palette, import dialog, and all major behavior loops: bootstrapping data, autosave, offline queue replay, cross-tab sync, presence, typing indicators, search, versioning, and drag/drop.
+
+This file is intentionally broad in MVP stage, so it is the best file for learning full-stack frontend orchestration.
+
+## Line-by-line walkthrough (in file order)
+
+## 1) Imports and constants (lines 1-41)
+### Imports
+- React hooks: `useCallback`, `useEffect`, `useMemo`, `useRef`, `useState`.
+- `Image` from Next for cover image rendering.
+- dnd-kit modules for drag and drop behavior.
+- `nanoid` for runtime IDs.
+- Icon components for UI affordances.
+- `offlineStore` helpers (`saveDraft`, `readDraft`, `queueSync`, `readSyncQueue`, `removeQueuedSync`).
+- Zustand store hook (`useWorkspaceStore`).
+- Utility helpers (`buildPageTree`, `createDiffText`, `getBreadcrumbs`, `mapBlockTypeLabel`).
+
+Why this matters:
+- This import list reveals the app architecture: state + utilities + infra + UI libraries.
+
+### `BLOCK_TYPES`
+- Supported block variants used by editor dropdown.
+
+## 2) `SortableBlock` component (lines 43-127)
+### Purpose
+Renders one editable block row with drag handle and controls.
+
+### Key logic
+- `useSortable({ id: block.id })` binds dnd-kit behavior.
+- `style` uses transform/transition from dnd-kit to animate movement.
+- Type `<select>` updates block type through `onUpdate` callback.
+- Type-change to `database` injects default database props object.
+- Controls:
+  - add new block after current
+  - add comment thread
+  - delete block
+- Render branches:
+  - divider -> `<hr>`
+  - database -> `<DatabaseBlock ...>`
+  - otherwise -> `<textarea>`
+- On text change:
+  - update block in store
+  - broadcast typing signal (`onType`)
+
+Control flow pattern:
+- component delegates all mutation to callbacks passed from parent, keeping this piece mostly presentational.
+
+## 3) `DatabaseBlock` component (lines 129-285)
+### Purpose
+Inline database editor that supports multiple views and cell editing.
+
+### Local derived state
+- `data`, `properties`, `rows`, `views`, `activeView`, `title`.
+
+### Inner helper functions
+- `updateDb(nextProps)`: wraps parent `onUpdate` with block/page IDs.
+- `addRow()`: creates new row with default values based on property types.
+- `setCell(rowId, propertyId, value)`: updates one cell.
+- `addProperty()`: appends property and seeds empty cell values on each row.
+- `grouped`/`groups`: computed grouping data for board view.
+
+### View rendering branches
+- Board: grouped columns/cards.
+- Gallery: card layout.
+- Calendar: simple date rows.
+- Default table: editable rows/cells with per-type input controls.
+
+State and scope notes:
+- Functions close over `data`, `rows`, `properties` from component scope.
+- Every update is immutable (new arrays/objects).
+
+## 4) `PageTree` recursive component (lines 287-319)
+### Purpose
+Renders sidebar page hierarchy with expand/collapse.
+
+### Behavior
+- Maps each node to a button row.
+- Shows twisty icon only when node has children.
+- Stops click propagation when toggling expansion so it does not also open page.
+- Recursively renders children when expanded.
+
+Concept taught:
+- recursive component rendering for unbounded hierarchy depth.
+
+## 5) `CommandPalette` component (lines 321-345)
+### Purpose
+Quick-find overlay (Cmd/Ctrl+K).
+
+### Behavior
+- Returns `null` when closed.
+- Overlay closes on background click.
+- Input updates query via callback.
+- Shows search results when query exists; otherwise recent pages.
+- Selecting result opens page.
+
+## 6) Main component setup (lines 347-440)
+### Store extraction
+- Reads many slices from `useWorkspaceStore()`.
+
+Why destructuring matters:
+- Keeps JSX readable and explicit about used state.
+
+### Local refs/state
+- `sensors` for drag activation rules.
+- `channelRef`: `BroadcastChannel` instance storage.
+- `clientIdRef`: stable client identity per tab.
+- timer refs for sync/search debounce.
+- local UI state: search results, import modal fields, selected version.
+
+### Derived memoized values
+- `currentUser`, `activePage`, `blocks`.
+- `pageTree`, `breadcrumbs`, `deletedPages`, `favoritePages`, `recentPages`, `pageThreads`, `visiblePresence`.
+- `serializableState` used for autosave payload and cross-tab sync.
+
+Why `useMemo` is used:
+- avoids recalculating tree/filter maps on every render unless dependencies change.
+
+## 7) `flushSyncQueue` callback (lines 442-456)
+### Purpose
+Replay queued offline writes in creation order.
+
+### Control flow
+1. Read queued items.
+2. For each item, attempt `PUT /api/workspace`.
+3. On success, remove queue item.
+4. On first failure, `break` (avoid burning queue when network still unstable).
+
+## 8) Effects: bootstrap, keyboard, realtime, autosave (lines 458-625)
+
+### Bootstrap effect (458-490)
+- Marks loading true.
+- Parallel loads:
+  - server workspace
+  - local IndexedDB draft
+- Chooses newest state by comparing `meta.updatedAt`.
+- Hydrates store.
+- Flushes sync queue.
+- Handles errors and cancellation flag.
+
+Why cancellation flag:
+- Prevents state updates after component unmount.
+
+### Keyboard effect (492-505)
+- Registers `keydown` listener.
+- Cmd/Ctrl+K toggles command palette.
+- Escape closes palette/import dialog.
+- Cleans up listener on unmount.
+
+### BroadcastChannel setup effect (507-528)
+- Creates channel `workspace-realtime` after load.
+- Handles message types:
+  - `state`: apply remote state
+  - `presence`: update presence map
+  - `typing`: update typing map
+- Ignores own messages via `clientId` check.
+- Closes channel on cleanup.
+
+### State broadcast effect (530-539)
+- Debounces outgoing state sync by 500ms.
+- Posts serialized state to channel.
+
+### Presence heartbeat effect (541-566)
+- Sends presence immediately and every 4 seconds.
+- Also prunes stale presence/typing entries.
+
+### Autosave/offline fallback effect (568-600)
+- Saves draft to IndexedDB each state change.
+- Builds autosave payload.
+- Debounced network save (650ms):
+  - increment pending save count
+  - `PUT /api/workspace`
+  - on failure enqueue payload
+  - decrement pending count
+
+### Online listener effect (602-608)
+- On browser reconnect, replay queue.
+
+### Search effect (610-625)
+- Runs only when palette open and query non-empty.
+- Debounced API call to `/api/search`.
+- Updates local `searchResults`.
+
+## 9) Action handlers (lines 627-734)
+### `onDragEnd`
+- Validates drag target.
+- Calculates old/new indices.
+- Reorders using `arrayMove`, then dispatches to store.
+
+### `onTypeBroadcast`
+- Builds typing payload.
+- Updates local typing map and broadcasts to other tabs.
+
+### Page/block/comment/version handlers
+- `createPage`, `openCommentForBlock`, `loadVersions`, `captureSnapshot`, `selectVersion`, `restoreVersion`, `importMarkdown`.
+
+Important flow examples:
+- `restoreVersion`: PATCH route then full workspace reload.
+- `importMarkdown`: POST import route then reload and open imported page.
+
+Note on UX debt:
+- Comments use `window.prompt`; functional but not ideal UX.
+
+## 10) Loading/error gates (lines 736-741)
+- Early return loading shell or error shell before full UI render.
+
+## 11) Main render tree (lines 743-1011)
+### Sidebar
+- Quick find button, new page/import buttons.
+- Templates list.
+- Favorites and recent lists.
+- Recursive `PageTree`.
+- Trash view with restore.
+
+### Document area
+- Header: breadcrumbs, save status, export links, snapshot/version actions.
+- Page metadata editors: icon, title, parent, sharing mode, favorite/delete.
+- Cover image and URL input.
+- DnD block list with `SortableBlock` entries.
+- Add block button.
+
+### Right panel
+- Presence card.
+- Comments threads and replies.
+- Version history list and diff summary restore action.
+
+### Overlays
+- `CommandPalette`.
+- Markdown import dialog.
+
+## State management summary
+- Global app/business state: Zustand store.
+- Local ephemeral UI state: React `useState` in this component.
+- External persistence state: server SQLite + local IndexedDB.
+
+## Scope and closure highlights
+- Every effect closes over dependencies; dependency arrays are critical to avoid stale values.
+- `clientIdRef` is stable across renders and prevents self-processing of broadcast messages.
+- Timer refs prevent orphaned timeouts between renders.
+
+## Control flow, error handling, and side effects
+- Heavy side-effect file: network calls, browser storage, channel messaging, event listeners, timers.
+- Error handling is partial: many failed fetches fail silently (improvement area).
+- Guard clauses prevent many invalid operations (`if (!activePageId) return`, etc.).
+
+## TypeScript notes
+- File is JavaScript. If converted to TypeScript, key improvements would be:
+  - strict types for `Page`, `Block`, `DatabaseBlockProps`, `Version`
+  - typed route responses
+  - typed message payloads for BroadcastChannel
+
+## Concepts taught by this file
+- Advanced React effect orchestration
+- Multi-source synchronization (server, local draft, cross-tab)
+- Optimistic UI with eventual persistence
+- Drag-and-drop architecture
+- Derived state and memoization
+- Component decomposition (partial)
+
+## Common mistakes
+- Missing effect dependency leading to stale closures.
+- Creating memory leaks by forgetting listener/timer cleanup.
+- Mutating nested objects before sending to store.
+- Overloading one component with too many concerns (current debt here).
+
+## Mini exercises
+1. Replace `window.prompt` for comments with a controlled modal component.
+2. Extract autosave logic into a custom hook `useWorkspaceAutosave`.
+3. Add user-visible toast when autosave fails and item is queued offline.
+
+## Further reading
+- `React useEffect mental model`
+- `stale closures in React`
+- `dnd-kit sortable patterns`
+- `offline-first architecture`
+- `separating smart and dumb components`

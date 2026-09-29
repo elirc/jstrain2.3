@@ -1,0 +1,103 @@
+﻿# Guide: src/app/globals.css
+
+## Purpose
+`globals.css` defines the shared visual system and layout primitives for the entire app: color tokens, spacing rhythm, panel structure, editor widgets, and responsive breakpoints. Even though CSS is not business logic, this file is core behavior for UX and usability.
+
+## Line-by-line walkthrough (in order by sections)
+### Import and root tokens
+- `@import "tailwindcss";`: enables Tailwind base pipeline.
+- `:root { --bg, --panel, --ink, ... }`: design tokens used throughout.
+
+Why:
+- Centralized tokens make theme-level changes easy and consistent.
+
+### Global element resets
+- `body`, `a`, `button/input/select/textarea` rules normalize base behavior.
+
+Why:
+- Prevent browser defaults from creating inconsistent UI.
+
+### App shell layout
+- `.workspace-shell` creates a 3-column grid: sidebar, editor, right panel.
+- `.sidebar`, `.doc-area`, `.right-panel` define shared panel treatment.
+
+Control flow concept:
+- CSS cascade applies base styles first, then more specific classes override.
+
+### Sidebar system
+- `.sidebar-head`, `.sidebar-group`, `.tree-item`, `.trash-item`, `.twisty`.
+
+Why:
+- Supports nested page tree, section grouping, and affordances for expand/collapse.
+
+### Button system
+- `.wide-btn`, `.ghost-btn`, `.inline-btn` plus danger variant.
+
+Why:
+- Reusable button semantics with variant-specific behavior.
+
+### Document/editor area
+- `.doc-header`, `.breadcrumbs`, `.page-meta`, `.cover-input`, `.cover-img`.
+- `.blocks`, `.block-row`, `.block-input`, `.typing-indicator`.
+
+Why:
+- Encodes editor interaction hierarchy and readable spacing.
+
+### Database block styles
+- `.database-block`, `.db-table`, `.db-board`, `.db-gallery`, `.db-calendar`.
+
+Why:
+- One data model, many presentation modes.
+
+### Right panel styles
+- `.presence-card`, `.comments-card`, `.versions-card`, `.thread`.
+
+Why:
+- Separates collaboration/support tools from core editor.
+
+### Modal/palette styles
+- `.palette-overlay`, `.palette`, `.palette-results`, `.import-dialog`.
+
+Why:
+- Supports command palette and import dialog layering.
+
+### Utility classes and responsiveness
+- `.loading-shell`, `.muted`.
+- Media queries at `1180px` and `920px`.
+
+Why:
+- Adapts 3-column desktop layout into 2-column and then single-column mobile flow.
+
+## State management in CSS
+- No JS state, but responsive conditions (`@media`) and class names represent visual states (`.active`, `.resolved`, `.danger`).
+
+## Scope and closures
+- Not JS closures, but CSS scope works through selectors and cascade specificity.
+
+## Side effects
+- Global CSS affects every route/component. Changes can unintentionally alter unrelated UI.
+
+## TypeScript notes
+- Not applicable.
+
+## Concepts taught by this file
+- Design tokens
+- Responsive layout with CSS Grid
+- Variant-based component styling
+- Visual hierarchy and affordances
+
+## Common mistakes
+- Hardcoding colors instead of reusing root variables.
+- Overly specific selectors causing maintenance pain.
+- Forgetting mobile breakpoints while adding desktop-only rules.
+
+## Mini exercises
+1. Add a `--success` token and apply it to resolved threads.
+2. Change right panel to sticky on desktop only.
+3. Add a reduced-motion media query for users who prefer less animation.
+
+## Further reading
+- `CSS custom properties (variables)`
+- `CSS Grid layout`
+- `responsive design breakpoints`
+- `BEM vs utility-first styling`

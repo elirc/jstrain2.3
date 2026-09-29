@@ -1,0 +1,69 @@
+﻿# Guide: package.json
+
+## Purpose
+`package.json` is the contract for how this project runs. It defines runtime dependencies (what the app needs to execute), dev dependencies (what helps build/lint it), and script commands (`dev`, `build`, `start`, `lint`). For a junior developer, this file explains the stack before reading any code.
+
+## Line-by-line walkthrough
+### Basic metadata
+- `name`, `version`, `private`: package identity. `private: true` prevents accidental publish to npm.
+
+### `scripts`
+- `dev`: starts Next.js development server with hot reload.
+- `build`: creates production build artifacts.
+- `start`: runs production server from built output.
+- `lint`: runs ESLint checks.
+
+Control-flow idea:
+- These are command aliases. Running `npm run dev` triggers `next dev`.
+
+### `dependencies`
+- `next`, `react`, `react-dom`: core app framework.
+- `zustand`: global client state store.
+- `better-sqlite3`: server-side SQLite access.
+- `nanoid`, `uuid`: unique IDs.
+- `fuse.js`: fuzzy text search.
+- `@dnd-kit/*`: drag-and-drop engine.
+- `react-icons`: icon components.
+- `yjs`, `y-websocket`: collaborative editing libs (currently not wired fully).
+- `prisma`, `@prisma/client`, `date-fns`, `lucide-react`: currently mostly unused or lightly used in this codebase.
+
+Design observation:
+- Having some unused deps is common during prototyping, but production cleanup is recommended.
+
+### `devDependencies`
+- `eslint`, `eslint-config-next`: code quality checks.
+- `tailwindcss`, `@tailwindcss/postcss`: styling toolchain.
+
+## State management in this file
+- No runtime state here. This is static configuration.
+
+## Scope and closures
+- Not applicable; this is JSON, not executable JS.
+
+## Side effects
+- Changing dependency versions changes build/runtime behavior globally.
+
+## TypeScript notes
+- No TypeScript types are defined in this file.
+
+## Concepts taught by this file
+- Dependency management
+- Build vs runtime dependencies
+- Script automation
+- Toolchain composition
+
+## Common mistakes
+- Installing runtime packages in `devDependencies` by mistake.
+- Forgetting to pin compatible framework versions.
+- Keeping unused libraries too long, increasing maintenance/security surface.
+
+## Mini exercises
+1. Add a `test` script placeholder and explain where tests should live.
+2. Identify one dependency you can remove right now without breaking the app.
+3. Add a script `check` that runs lint then build in one command.
+
+## Further reading
+- `npm scripts`
+- `semantic versioning`
+- `dependency management in Node.js`
+- `production dependency auditing`

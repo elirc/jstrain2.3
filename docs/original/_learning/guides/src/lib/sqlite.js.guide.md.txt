@@ -1,0 +1,115 @@
+﻿# Guide: src/lib/sqlite.js
+
+## Purpose
+`sqlite.js` is the server-side persistence layer. It creates the local SQLite database, ensures schema tables exist, seeds initial workspace state, and provides helper functions used by API routes.
+
+## Line-by-line walkthrough
+### Imports
+- Node built-ins:
+  - `fs` for folder checks/creation
+  - `path` for cross-platform file paths
+  - `randomUUID` for version IDs
+- `better-sqlite3` for synchronous SQL execution
+- `createDefaultWorkspace` for first-run seeding
+
+Why synchronous DB calls are okay here:
+- Route handlers are server-side and `better-sqlite3` keeps code straightforward for an MVP.
+
+### Constants and module state
+- `DATA_DIR`, `DB_FILE`: resolved to `.data/workspace.sqlite`.
+- `dbInstance`: module-level singleton cache.
+
+Scope note:
+- Module scope means same DB connection object is reused instead of reconnecting per request.
+
+### `ensureDir()`
+- Creates `.data` folder if missing.
+
+Control flow:
+- Guard check with `existsSync` then `mkdirSync`.
+
+### `ensureSchema(db)`
+- Executes a large SQL string with many `CREATE TABLE IF NOT EXISTS` statements.
+- Includes all requested model tables plus `workspace_state`.
+
+Key design decision:
+- App currently persists mostly into `workspace_state.state_json`, but relational tables are prepared for future migration.
+
+### `seedDefaultState(db)`
+- Checks if `workspace-default` already exists in `workspace_state`.
+- If absent, generates seed workspace and inserts it.
+
+Why:
+- Guarantees first startup has usable data.
+
+### `getDb()`
+1. Return cached `dbInstance` if already created.
+2. Ensure data directory.
+3. Open SQLite file.
+4. Ensure schema.
+5. Seed default state.
+6. Return DB instance.
+
+Pattern:
+- Lazy singleton initialization.
+
+### `getWorkspaceState(workspaceId = "workspace-default")`
+- Reads JSON blob from `workspace_state`.
+- If missing, creates default and upserts.
+- Returns parsed object.
+
+Error/edge handling:
+- Missing row is handled gracefully.
+
+### `upsertWorkspaceState(workspaceId, state)`
+- Writes JSON using SQL upsert (`ON CONFLICT(workspace_id)`).
+- Updates `updated_at` timestamp every write.
+
+Why:
+- One canonical save path for full workspace payload.
+
+### `savePageVersion({ pageId, workspaceId, authorId })`
+- Reads current workspace state.
+- Finds page and associated blocks.
+- Creates snapshot payload.
+- Inserts into `page_versions` with `randomUUID`.
+- Returns version ID or `null` if page missing.
+
+### `listPageVersions(pageId)`
+- Returns metadata rows ordered by newest first.
+
+### `getPageVersion(versionId)`
+- Reads one version row.
+- Parses snapshot JSON.
+- Returns normalized object or `null`.
+
+Side effects:
+- File system writes (`.data` folder).
+- SQL DDL and DML operations.
+
+TypeScript notes:
+- No static typing. In TS, table row/result types would improve safety.
+
+## Concepts taught by this file
+- SQLite integration
+- Lazy singletons
+- Schema bootstrapping
+- Seed initialization
+- Upsert semantics
+- Snapshot persistence
+
+## Common mistakes
+- Opening multiple DB connections unnecessarily.
+- Forgetting to parse/stringify JSON columns.
+- Skipping schema migration strategy as schema evolves.
+
+## Mini exercises
+1. Add `deletePageVersion(versionId)` helper.
+2. Add try/catch around JSON parse with fallback error handling.
+3. Move repeated `new Date().toISOString()` calls to one helper.
+
+## Further reading
+- `better-sqlite3 documentation`
+- `SQL upsert on conflict`
+- `database migration strategies`
+- `repository pattern Node.js`

@@ -1,0 +1,68 @@
+﻿# Guide: src/app/api/export/html/route.js
+
+## Purpose
+This route exports a page as a styled standalone HTML document. It escapes user text for safety and maps each block type to HTML markup.
+
+## Line-by-line walkthrough
+### Import
+- `getWorkspaceState`: reads page and block data.
+
+### `runtime = "nodejs"`
+- Server-side execution.
+
+### `escapeHtml(value)`
+- Replaces `&`, `<`, `>`, and `"` with HTML entities.
+
+Why:
+- Prevents injected markup/scripts from being interpreted as HTML.
+
+### `renderBlock(block)`
+- Converts block type to HTML string via `switch`:
+  - headings -> `<h1/2/3>`
+  - bullet/number -> `<li>`
+  - callout -> `<blockquote>`
+  - code -> `<pre><code>`
+  - divider -> `<hr>`
+  - database -> summary `<section>`
+  - default -> `<p>`
+
+Control flow:
+- Type-based rendering adapter.
+
+### `GET(request)`
+1. Parse `workspaceId` and `pageId`.
+2. Load state and pick page (ID match or first fallback).
+3. Return 404 when no page exists.
+4. Build full HTML template string with inline CSS.
+5. Insert escaped page title and rendered blocks.
+6. Return response with HTML content type and download filename.
+
+Scope/closure note:
+- `renderBlock` closes over module-level `escapeHtml` helper.
+
+Side effects:
+- No DB writes; response-only.
+
+TypeScript notes:
+- No typed block union, so unsupported types fall through to default paragraph.
+
+## Concepts taught by this file
+- Output escaping (security)
+- Template string rendering
+- Content export adapters
+- Fallback rendering logic
+
+## Common mistakes
+- Forgetting HTML escaping and creating XSS risk.
+- Mixing unescaped title/content into template.
+- Generating invalid HTML when adding new block types.
+
+## Mini exercises
+1. Wrap bullet/number sequences in `<ul>`/`<ol>` lists properly.
+2. Add syntax-highlight class names for code blocks.
+3. Add print-friendly CSS in exported HTML.
+
+## Further reading
+- `XSS prevention output encoding`
+- `server-side HTML templating`
+- `content export architecture`

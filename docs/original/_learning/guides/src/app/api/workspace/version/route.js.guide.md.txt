@@ -1,0 +1,75 @@
+﻿# Guide: src/app/api/workspace/version/route.js
+
+## Purpose
+This route handles version history queries and restore actions for a page. It supports listing versions, fetching one snapshot, and restoring a snapshot into current workspace state.
+
+## Line-by-line walkthrough
+### Imports
+- `getPageVersion`, `listPageVersions`: read version records.
+- `getWorkspaceState`, `upsertWorkspaceState`: load and persist live workspace state.
+
+### `runtime = "nodejs"`
+- Required for SQLite usage.
+
+### `json(data, init)` helper
+- Shared JSON response helper.
+
+### `GET(request)`
+Control flow:
+1. Parse `pageId` and `versionId` from query.
+2. If `versionId` exists:
+   - fetch exact version,
+   - return 404 if missing,
+   - return `{ version }` if found.
+3. Otherwise require `pageId`.
+4. List versions for page and return `{ versions }`.
+
+Why this branching:
+- One endpoint supports both list and detail read use cases.
+
+### `PATCH(request)`
+1. Parse payload and defaults.
+2. Require `versionId`.
+3. Fetch target version; 404 if missing.
+4. Load current workspace state.
+5. Find page index for snapshot page.
+6. Merge snapshot page metadata into current page.
+7. Replace current `blocksByPage[pageId]` with snapshot blocks.
+8. Update `meta.updatedAt`.
+9. Persist workspace.
+10. Return `{ ok: true, pageId }`.
+
+Error handling:
+- Any unexpected failure returns 500.
+
+## State management relevance
+- This route bridges historical snapshots into live state.
+
+## Scope and closures
+- None complex; straightforward route-local variables.
+
+## Side effects
+- Writes workspace state and therefore changes what users see immediately.
+
+## TypeScript notes
+- No payload type guards beyond presence checks.
+
+## Concepts taught by this file
+- Snapshot restore workflow
+- Resource existence checks
+- Merge-and-replace strategy
+
+## Common mistakes
+- Restoring wrong page due missing page/version relation check.
+- Forgetting to update `meta.updatedAt`, causing stale sync behavior.
+- Overwriting entire workspace when only one page should change.
+
+## Mini exercises
+1. Add a dry-run mode returning diff preview without restoring.
+2. Add `authorId` into restore response metadata.
+3. Prevent restore if snapshot is older than a configurable threshold.
+
+## Further reading
+- `versioning strategies content systems`
+- `partial state restoration`
+- `HTTP PATCH semantics`

@@ -1,0 +1,191 @@
+﻿# Master Architecture Guide
+
+## 1) What This App Is
+This project is a Notion-style workspace where a team can create nested pages, edit block content, add inline databases, comment on blocks, search content, and export/import documents. It is aimed at small teams and learners who want a single place to manage notes and lightweight project knowledge.
+
+The app is currently a strong MVP, not a fully hardened production system. It has many production-like patterns (API routes, persistence, offline queue, version history), but also intentional shortcuts (single workspace seed, no auth, full-state saves).
+
+## 2) Who It Is For
+- End users: small teams that need shared docs and task tables.
+- Developers: juniors learning full-stack React + Next.js architecture.
+- Product stage: advanced prototype / MVP.
+
+## 3) System Overview
+High-level responsibilities:
+- `src/components/WorkspaceApp.js`: main UI shell and behavior orchestration.
+- `src/lib/workspaceStore.js`: client-side app state and state mutation actions.
+- `src/app/api/**/route.js`: server endpoints for save/load/search/import/export/versioning.
+- `src/lib/sqlite.js`: SQLite bootstrap, schema creation, data read/write helpers.
+- `src/lib/offlineStore.js`: IndexedDB queue + draft storage for offline mode.
+- `src/lib/defaultWorkspace.js`: initial seeded workspace data.
+- `src/lib/markdown.js`: Markdown <-> block conversion.
+
+## 4) Architecture Diagram
+```mermaid
+flowchart LR
+  U[User Browser]
+  C[WorkspaceApp React Component]
+  S[Zustand Store]
+  O[IndexedDB Offline Store]
+  A1[/api/workspace]
+  A2[/api/workspace/version]
+  A3[/api/search]
+  A4[/api/import/markdown]
+  A5[/api/export/markdown]
+  A6[/api/export/html]
+  DB[(SQLite .data/workspace.sqlite)]
+  BC[BroadcastChannel Cross-Tab Sync]
+
+  U --> C
+  C <--> S
+  C --> O
+  O --> C
+  C --> BC
+  BC --> C
+
+  C --> A1
+  C --> A2
+  C --> A3
+  C --> A4
+  C --> A5
+  C --> A6
+
+  A1 --> DB
+  A2 --> DB
+  A3 --> DB
+  A4 --> DB
+  A5 --> DB
+  A6 --> DB
+```
+
+ASCII equivalent:
+```text
+User -> React UI (WorkspaceApp) -> Zustand state -> API routes -> SQLite
+                    |                  |            |
+                    |                  |            +-> import/export/search/version endpoints
+                    |                  +-> IndexedDB draft + sync queue
+                    +-> BroadcastChannel for cross-tab presence/typing/state sync
+```
+
+## 5) Data Flow (Typical User Action)
+Example: user edits a paragraph block.
+1. User types in a block textarea in `WorkspaceApp`.
+2. `onChange` calls `store.updateBlock(...)` in `workspaceStore`.
+3. UI updates immediately from local Zustand state (fast perceived response).
+4. Debounced autosave effect in `WorkspaceApp` builds `payload` and `PUT`s `/api/workspace`.
+5. API route validates minimal shape (`pages` array + `blocksByPage` object).
+6. API route updates metadata/activity and calls `upsertWorkspaceState(...)`.
+7. `sqlite.js` writes full JSON state into `workspace_state` table.
+8. API responds `{ ok: true }`; UI clears pending-save indicator.
+9. If network fails, payload is queued in IndexedDB (`queueSync`) and replayed on `online`.
+10. Cross-tab updates are sent through `BroadcastChannel` so another open tab sees changes.
+
+## 6) Request/Response Lifecycle (Step-by-Step)
+### Read flow (`GET /api/workspace`)
+- Browser loads page.
+- `WorkspaceApp` bootstraps:
+  - requests server state,
+  - reads local IndexedDB draft,
+  - chooses newest by `meta.updatedAt`.
+- Store is hydrated and app becomes interactive.
+
+### Write flow (`PUT /api/workspace`)
+- Store changes frequently due user edits.
+- Debounced effect sends serialized state.
+- Server stamps `meta.updatedAt` and appends activity record.
+- SQLite upsert persists state blob.
+- Client updates "Saved" time.
+
+### Export flow (`GET /api/export/*`)
+- User clicks export button.
+- Browser opens API URL.
+- API loads page + blocks from SQLite state.
+- API transforms blocks to markdown or html.
+- Response is returned with attachment headers.
+
+## 7) Key Design Decisions
+### Why Next.js App Router
+- Gives both UI and API routes in one project.
+- Teaches full-stack patterns without separate backend repo.
+- Easy local dev and deployment path.
+
+### Why Zustand
+- Lightweight state manager with minimal boilerplate.
+- Good for teaching immutable updates and central actions.
+- Easier for juniors than Redux Toolkit at this stage.
+
+### Why SQLite + `better-sqlite3`
+- Zero external service needed for local development.
+- Synchronous API is simple to reason about in route handlers.
+- Good for prototyping before moving to Postgres.
+
+### Why state-as-JSON storage (`workspace_state`)
+- Rapid MVP implementation.
+- Flexible schema evolution during prototyping.
+- Tradeoff: weak relational constraints and harder partial updates.
+
+### Why BroadcastChannel for realtime
+- Fast cross-tab collaboration simulation with low complexity.
+- Tradeoff: not true multi-device realtime; no CRDT merge logic yet.
+
+### Why IndexedDB queue
+- Teaches resilient offline-first thinking.
+- Saves user edits when API calls fail.
+
+## 8) Dependency Map
+Core dependency directions:
+- `WorkspaceApp` depends on:
+  - `workspaceStore`
+  - `offlineStore`
+  - API routes via `fetch`
+  - `workspaceUtils`
+  - dnd-kit + react-icons + Next Image
+- API routes depend on:
+  - `sqlite`
+  - optional `markdown` converters
+  - optional `nanoid`/`Fuse`
+- `sqlite` depends on:
+  - Node built-ins (`fs`, `path`, `crypto`)
+  - `better-sqlite3`
+  - `defaultWorkspace`
+- `workspaceStore` depends on:
+  - `zustand`
+  - `nanoid`
+  - `workspaceUtils` guard (`isDescendant`)
+
+Dependency principle used here: UI never imports DB code directly; it uses HTTP APIs. This keeps browser/server concerns separated.
+
+## 9) Folder Structure Rationale
+- `src/app`: Next.js routing layer (pages + API routes + global layout).
+- `src/components`: large interactive UI pieces.
+- `src/lib`: reusable domain logic and infrastructure helpers.
+- `_learning`: generated onboarding curriculum.
+
+This is a pragmatic monorepo-style structure suitable for a single-team codebase.
+
+## 10) Dev vs Production Runtime
+### Development (`npm run dev`)
+- Next.js dev server with hot reload.
+- API routes run on-demand in Node runtime.
+- SQLite file stored at `.data/workspace.sqlite`.
+- Fast iteration, lower optimization.
+
+### Production (`npm run build && npm run start`)
+- Next.js optimized build output.
+- API routes still Node server functions.
+- Same SQLite file path logic unless container/file system changes.
+- Better performance, stricter runtime behavior.
+
+## 11) Infrastructure Notes and Limits
+- No authentication yet: all requests assume `user-owner` default.
+- No row-level access control enforcement yet.
+- Realtime is cross-tab only (BroadcastChannel), not internet multi-user.
+- Whole workspace save on each autosave can become expensive at scale.
+- Schema has many model tables but current app mostly persists from `workspace_state`.
+
+## 12) If You Were Hardening This for Real Production
+1. Add auth + session-based current user.
+2. Move from full-state blob writes to structured table updates/transactions.
+3. Introduce WebSocket server + Yjs/Liveblocks for true multi-client collaboration.
+4. Add request validation (e.g., Zod) and stricter input sanitization.
+5. Add tests for routes, store actions, and Markdown conversion.

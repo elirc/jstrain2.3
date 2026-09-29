@@ -1,0 +1,65 @@
+﻿# Guide: src/lib/offlineStore.js
+
+## Purpose
+`offlineStore.js` wraps IndexedDB for two reliability features: local draft recovery and offline sync queue replay. It gives a small, promise-based storage API to the rest of the app.
+
+## Line-by-line walkthrough
+### Constants
+- `DB_NAME`, `DB_VERSION`: IndexedDB database identity/version.
+- `STORE_QUEUE`, `STORE_DRAFTS`: object store names.
+
+Why:
+- Explicit constants avoid typo bugs and centralize naming.
+
+### `openDb()`
+- Returns a Promise because IndexedDB uses event-based API.
+- Guards against server execution (`window`/`indexedDB` absent).
+- Opens DB and handles:
+  - `onerror` -> reject
+  - `onsuccess` -> resolve DB handle
+  - `onupgradeneeded` -> create stores if missing
+
+Control flow:
+- Upgrade callback runs only when DB version changes or DB first created.
+
+### Private CRUD helpers (`put`, `get`, `getAll`, `remove`)
+- Each opens DB, starts transaction, and resolves/rejects based on events.
+- `put`/`remove` use `readwrite`; `get`/`getAll` use `readonly`.
+
+Scope/closure note:
+- Transaction callbacks close over Promise `resolve/reject`.
+
+### Public API
+- `saveDraft(workspaceId, state)` stores latest draft by workspace key.
+- `readDraft(workspaceId)` reads draft.
+- `queueSync(item)` adds failed network payload.
+- `readSyncQueue()` gets all queued items and sorts oldest-first.
+- `removeQueuedSync(id)` deletes item after successful replay.
+
+Side effects:
+- Writes to browser persistent storage.
+
+TypeScript notes:
+- No types. In TS, queue item would have shape like `{ id: string; createdAt: number; payload: ... }`.
+
+## Concepts taught by this file
+- IndexedDB basics
+- Promise wrapping of callback APIs
+- Offline-first architecture
+- Transaction mode differences
+
+## Common mistakes
+- Using IndexedDB on server side.
+- Forgetting to sort queued writes by time.
+- Ignoring transaction error handlers.
+
+## Mini exercises
+1. Add a function to clear all queued sync items.
+2. Add retry-count tracking to queue items.
+3. Add a max queue size with oldest-item eviction.
+
+## Further reading
+- `IndexedDB transactions`
+- `offline-first web apps`
+- `promisifying callback APIs`
+- `event-driven browser APIs`

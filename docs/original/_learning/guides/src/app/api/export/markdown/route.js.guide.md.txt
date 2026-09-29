@@ -1,0 +1,52 @@
+﻿# Guide: src/app/api/export/markdown/route.js
+
+## Purpose
+This route exports a page as Markdown text and returns it as a downloadable file.
+
+## Line-by-line walkthrough
+### Imports
+- `blocksToMarkdown`: converts block array + page metadata into markdown.
+- `getWorkspaceState`: loads current workspace.
+
+### `runtime = "nodejs"`
+- Route executes server-side.
+
+### `GET(request)`
+1. Parse `workspaceId` and `pageId` from query params.
+2. Load workspace state.
+3. Find target page by ID; fallback to first page.
+4. Return 404 if no page exists.
+5. Read blocks for selected page.
+6. Build markdown text via converter.
+7. Return `new Response(markdown, { headers })` with:
+   - markdown content type
+   - attachment filename derived from page title
+
+Control flow:
+- Fallback path keeps UX smooth when `pageId` missing.
+
+Side effects:
+- None persistent; response-only.
+
+TypeScript notes:
+- No explicit types for query params.
+
+## Concepts taught by this file
+- Data export endpoint
+- HTTP attachment headers
+- Format conversion pipeline
+
+## Common mistakes
+- Forgetting charset in `Content-Type`.
+- Not sanitizing filename from title.
+- Returning JSON when download response is intended.
+
+## Mini exercises
+1. Add support for exporting entire workspace as one markdown bundle.
+2. Include export timestamp in file header.
+3. Add option to include/exclude page title heading.
+
+## Further reading
+- `HTTP content-disposition`
+- `file download responses in web APIs`
+- `markdown serialization`

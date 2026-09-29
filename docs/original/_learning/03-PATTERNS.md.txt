@@ -1,0 +1,223 @@
+﻿# Patterns and Anti-Patterns
+
+This file is intentionally honest. Some choices are excellent for learning and MVP speed; others should be refactored for scale.
+
+## Patterns Used Well
+
+## 1) Centralized State Store (Flux-like)
+What it is:
+- One store (`useWorkspaceStore`) holds core UI state and mutation actions.
+
+Where:
+- `src/lib/workspaceStore.js`
+
+Why it helps:
+- Predictable updates.
+- Easier debugging than scattered `useState` across many components.
+
+Extra mini-example:
+- A shopping app with one `cartStore` avoids prop-drilling through 6 component layers.
+
+## 2) API Boundary Between Client and Persistence
+What it is:
+- Browser talks to `/api/*`, not directly to SQLite.
+
+Where:
+- `WorkspaceApp` uses `fetch('/api/...')`; routes call `sqlite.js`.
+
+Why it helps:
+- Clear security/runtime boundary.
+- Easier future move to external DB/service.
+
+Extra mini-example:
+- Mobile app calls `/api/orders`; server handles DB details internally.
+
+## 3) Defensive Guard Clauses
+What it is:
+- Early exits for invalid input and non-actionable states.
+
+Where:
+- API routes return 400/404 quickly.
+- `onDragEnd` returns when `over` is missing.
+
+Why it helps:
+- Prevents deep nested `if` blocks.
+- Reduces bug surface.
+
+Extra mini-example:
+- `if (!token) return 401` at top of protected route.
+
+## 4) Derived Data with `useMemo`
+What it is:
+- Compute expensive/read-only views from state only when dependencies change.
+
+Where:
+- `breadcrumbs`, `favoritePages`, `visiblePresence`, `serializableState`.
+
+Why it helps:
+- Reduces unnecessary work on each render.
+
+Extra mini-example:
+- Product list sorted by price only when filters/sort settings change.
+
+## 5) Offline-First Resilience Pattern
+What it is:
+- Save local draft + queue failed writes.
+
+Where:
+- `src/lib/offlineStore.js`, autosave effect in `WorkspaceApp`.
+
+Why it helps:
+- Better UX under flaky network conditions.
+
+Extra mini-example:
+- Field app stores inspection forms locally and syncs later.
+
+## 6) Recursive UI Rendering Pattern
+What it is:
+- Component renders itself for child nodes.
+
+Where:
+- `PageTree` component renders nested children recursively.
+
+Why it helps:
+- Natural fit for unknown depth hierarchies.
+
+Extra mini-example:
+- Nested comments thread in forum app.
+
+## 7) File Export Adapter Pattern
+What it is:
+- Same domain model converted into multiple output formats.
+
+Where:
+- `/api/export/markdown`, `/api/export/html`.
+
+Why it helps:
+- Keeps source data shape stable while supporting different views.
+
+Extra mini-example:
+- Export invoice object to PDF, CSV, and JSON.
+
+## 8) Timestamp-Based Conflict Resolution
+What it is:
+- "Newer `updatedAt` wins" when merging remote state.
+
+Where:
+- `applyRemoteState` in store.
+
+Why it helps:
+- Very simple convergence strategy for MVP.
+
+Extra mini-example:
+- Last profile edit wins across two browser tabs.
+
+## Anti-Patterns / Risks
+
+## 1) Monolithic UI Component
+Issue:
+- `WorkspaceApp.js` handles many concerns at once: rendering, networking, sync, presence, import/export triggers.
+
+Risk:
+- Hard to test and reason about.
+- New features can create accidental regressions.
+
+Better:
+- Split into focused hooks/components:
+  - `useWorkspaceBootstrap`
+  - `useAutosave`
+  - `usePresence`
+  - `Sidebar`, `EditorPane`, `RightPanel`
+
+## 2) Full Workspace Blob Persistence
+Issue:
+- Every save writes full `state_json` blob.
+
+Risk:
+- Write amplification as workspace grows.
+- Hard diffing and concurrent write conflict handling.
+
+Better:
+- Incremental writes by entity (page/block/comment tables).
+- Add transactions for multi-step writes.
+
+## 3) Partial Input Validation
+Issue:
+- Routes only do minimal shape checks.
+
+Risk:
+- Unexpected runtime failures or corrupted state shape.
+
+Better:
+- Add schema validation (`zod`) for every route payload.
+
+## 4) Fake Realtime Scope
+Issue:
+- Realtime uses `BroadcastChannel` only (same browser origin/tabs).
+
+Risk:
+- No true collaboration across devices/users.
+
+Better:
+- WebSocket infrastructure + CRDT (Yjs/Liveblocks).
+
+## 5) Prompt-Based UX (`window.prompt`)
+Issue:
+- Comments/replies use browser prompt dialogs.
+
+Risk:
+- Poor UX, no validation, no rich editing, inconsistent behavior.
+
+Better:
+- Controlled modal component with form validation and keyboard support.
+
+## 6) Schema/Runtime Mismatch
+Issue:
+- Rich relational tables are created in SQLite schema, but app mostly reads/writes `workspace_state` JSON.
+
+Risk:
+- Unused schema complexity; confusion for new contributors.
+
+Better:
+- Either fully adopt relational tables or slim schema to only active storage model.
+
+## 7) Limited Access Control
+Issue:
+- Sharing fields exist but no authenticated policy enforcement.
+
+Risk:
+- Security model is representational, not enforced.
+
+Better:
+- Introduce auth, workspace membership checks, role guards in routes.
+
+## 8) Weak Error Surface in Client
+Issue:
+- Many failed `fetch` calls silently return.
+
+Risk:
+- User sees no actionable feedback.
+
+Better:
+- Add toast/error state and retry UI.
+
+## Pattern Summary Matrix
+| Area | Current Pattern | Quality | Next Improvement |
+|---|---|---|---|
+| State | Central Zustand store | Good | Split actions by domain modules |
+| Realtime | BroadcastChannel sync | MVP-only | WebSocket + CRDT |
+| Persistence | JSON blob upsert | Fast MVP | Entity-level writes + transactions |
+| API Validation | Manual checks | Basic | Schema validation middleware |
+| UX Inputs | Prompt dialogs | Weak | Modal forms |
+| Offline | IndexedDB queue/drafts | Strong MVP | Conflict-aware replay + retry policy |
+
+## What To Keep vs Refactor
+Keep:
+1. Clear module boundaries (`lib`, `api`, `components`).
+2. Offline queue concept.
+3. Route-oriented persistence boundary.
+
+Refactor first:
+1. Break up `WorkspaceApp`.
+2. Add input schemas and route guards.
+3. Move from full-state blob to granular writes.
