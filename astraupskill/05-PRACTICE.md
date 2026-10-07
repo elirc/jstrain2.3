@@ -2,6 +2,14 @@
 
 These are exercises for you to implement after understanding the delivered application. They are not claims that the features already exist. Work in a separate branch or copy and use a disposable database. Read [the review guide](06-SOLUTIONS-AND-REVIEW.md) only after writing your own design and acceptance criteria.
 
+**How to check without installing anything.** Six of the eleven test files import only `node:` modules and `src/lib/*.mjs` helpers, so they run on a fresh clone:
+
+```bash
+node --test test/database.test.mjs test/schema.test.mjs test/mutations.test.mjs test/merge.test.mjs test/session.test.mjs test/client.test.mjs
+```
+
+This was run on Node 22.16 and passed 61 tests with 0 failures. The other 36 tests need `npm install`. `markdown.test.mjs` imports `nanoid` through `src/lib/markdown.js`, `store.test.mjs` imports `zustand`, and `repository.test.mjs` and `api.test.mjs` need `better-sqlite3` (the API tests also need `fuse.js`). Exercises 2–4 can be checked entirely in the dependency-free set. Exercises 5–6 need the installed set.
+
 ## Exercise 1: a clear empty workspace state
 
 Trash every active page in a disposable workspace. The sidebar still allows creating a page, but the document area can explain the next action more clearly. Add an empty state with a New top-level page button and a View trash button. Do not duplicate page-creation logic in the component. Use the existing store action with an explicit null parent.
@@ -14,17 +22,23 @@ Add Duplicate record beside Delete record. Copy values into a new record with a 
 
 Acceptance criteria: editing the duplicate does not mutate the original; zero, false, blank dates and selected options survive; duplication at the limit gives a clear error; the duplicate persists after an accepted save and reload. Write a pure test for identity and detached nested data, then one browser check for the actual control.
 
+**Check:** model the new test on `"template instances have detached nested database values and new block identities"` (`test/mutations.test.mjs:9`): mutate the duplicate and assert the original is unchanged. Then run `node --test test/mutations.test.mjs test/database.test.mjs`.
+
 ## Exercise 3: a reusable row template editor
 
 Existing row templates can be used when present in the document. Add controls to capture a record's values as a named template, rename a template and delete one. Reuse current property definitions rather than copying their schema into the template. Decide how a property deletion affects saved templates by studying the existing cleanup helper.
 
 Acceptance criteria: names are bounded and nonempty; templates have unique IDs; captured values are detached; deleting a property cleans template values; deleting a template does not delete records already created from it. Include both success and invalid-input tests at the mutation/schema boundary.
 
+**Check:** extend `"deleting a property removes row/template values and dependent view settings"` (`test/database.test.mjs:103`) so it also asserts that your template editor's output survives `removeProperty` (`src/lib/databaseModel.mjs:12`). Add one invalid-name case to `test/schema.test.mjs`, then run `node --test test/database.test.mjs test/schema.test.mjs`.
+
 ## Exercise 4: typed filter validation
 
 The current view model supports comparison operators, but the form can guide users more precisely. Make a checkbox filter offer true/false, a date filter offer a date input, and a number filter reject nonfinite numeric text. Decide which operators make sense for each type. Implement the same rule at the server validation boundary so hand-written requests cannot bypass it.
 
 Acceptance criteria: a numeric comparison is numeric; blank is distinct from zero; an invalid date cannot be accepted; old valid saved filters still work or have an explicit migration story. This is a contract change, so discuss compatibility before changing the schema. Avoid silently deleting existing filters merely because the new UI does not understand them.
+
+**Check:** `cellValue` (`src/lib/databaseModel.mjs:2`) already throws `Enter a finite number` for `'oops'` and returns `''` for blank and `0` for `'0'`. The server-side rule you add must agree with it. Add a case to `"filters compose and empty does not classify zero or false as missing"` (`test/database.test.mjs:69`) and a rejected-filter case to `test/schema.test.mjs`, then run both files with `node --test`.
 
 ## Exercise 5: durable receipts for an import
 
